@@ -1,0 +1,18 @@
+diff --git a/arch/arm64/boot/dts/freescale/nitrogen-imx95-smarc.dtsi b/arch/arm64/boot/dts/freescale/nitrogen-imx95-smarc.dtsi
+index aeeec90..85f9d9e 100644
+--- a/arch/arm64/boot/dts/freescale/nitrogen-imx95-smarc.dtsi
++++ b/arch/arm64/boot/dts/freescale/nitrogen-imx95-smarc.dtsi
+@@ -183,11 +183,11 @@
+ };
+ 
+ &neutron_core {
+-	status = "disabled";
++	status = "okay";
+ };
+ 
+ &neutron {
+-	status = "disabled";
++	status = "okay";
+ };
+ 
+ &adc1 {

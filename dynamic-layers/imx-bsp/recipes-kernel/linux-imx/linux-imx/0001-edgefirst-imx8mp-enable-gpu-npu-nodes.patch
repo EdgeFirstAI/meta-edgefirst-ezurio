@@ -1,0 +1,24 @@
+diff --git a/arch/arm64/boot/dts/freescale/imx8mp-summitsom-gpu.dtsi b/arch/arm64/boot/dts/freescale/imx8mp-summitsom-gpu.dtsi
+index f11e92c..89355f8 100644
+--- a/arch/arm64/boot/dts/freescale/imx8mp-summitsom-gpu.dtsi
++++ b/arch/arm64/boot/dts/freescale/imx8mp-summitsom-gpu.dtsi
+@@ -34,7 +34,3 @@
+ &ml_vipsi {
+ 	status = "okay";
+ };
+-
+-&display_subsystem {
+-	status = "okay";
+-};
+diff --git a/arch/arm64/boot/dts/freescale/nitrogen-imx8mp-smarc.dtsi b/arch/arm64/boot/dts/freescale/nitrogen-imx8mp-smarc.dtsi
+index 19f532f..a46f4a7 100644
+--- a/arch/arm64/boot/dts/freescale/nitrogen-imx8mp-smarc.dtsi
++++ b/arch/arm64/boot/dts/freescale/nitrogen-imx8mp-smarc.dtsi
+@@ -6,6 +6,7 @@
+ #include <dt-bindings/phy/phy-imx8-pcie.h>
+ #include <dt-bindings/usb/pd.h>
+ #include "imx8mp.dtsi"
++#include "imx8mp-summitsom-gpu.dtsi"
+ 
+ / {
+ 	model = "Ezurio i.MX8MP Nitrogen SMARC board";
