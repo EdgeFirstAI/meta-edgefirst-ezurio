@@ -1,0 +1,173 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: "Jiwei.Fu" <jiwei.fu@nxp.com>
+Date: Fri, 18 Sep 2026 10:12:00 +0800
+Subject: [PATCH] staging: neutron: rework driver-firmware mailbox handshake
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Adapt the mailbox handling to the current Neutron firmware protocol:
+
+- RESET_VAL changes from 0x0 to 0xA1, matching the value firmware
+  writes into the state register after a reset.
+- A POLL sentinel (0x9011) is written to MBOX3 before each command so
+  firmware cannot observe stale or partially written commands.
+- Issue a send_reset() right after the core boots, leaving the mailbox
+  in the ready state before the first request arrives.
+- Cache the inference reply before send_reset() clobbers the MBOX
+  registers.
+
+Required by eIQ Neutron SDK 3.2.x firmware, which replies 0xA1 to a
+mailbox reset where this driver expected 0x0 and would spin until its
+retry budget ran out, leaving the NPU unusable.
+
+Upstream-Status: Backport [https://github.com/nxp-imx/linux-imx/commit/a7dcf89752080225ad2b121992999b912e92ab38]
+
+Signed-off-by: Jiwei.Fu <jiwei.fu@nxp.com>
+Reviewed-by: Ioana <ruxandra.radulescu@nxp.com>
+Signed-off-by: Sébastien Taylor <sebastien@au-zone.com>
+---
+ drivers/staging/neutron/neutron_device.c    |  6 ++++++
+ drivers/staging/neutron/neutron_device.h    |  3 ++-
+ drivers/staging/neutron/neutron_inference.c | 15 +++++++++------
+ drivers/staging/neutron/neutron_inference.h |  5 +++++
+ drivers/staging/neutron/neutron_mailbox.c   |  9 ++++++++-
+ 5 files changed, 30 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/staging/neutron/neutron_device.c b/drivers/staging/neutron/neutron_device.c
+index af74671..1b694ed 100644
+--- a/drivers/staging/neutron/neutron_device.c
++++ b/drivers/staging/neutron/neutron_device.c
+@@ -328,6 +328,12 @@ int neutron_rproc_boot(struct neutron_device *ndev, const char *fw_name)
+ 		if (!wait_until_neutron_ready(ndev, 100))
+ 			dev_err(ndev->dev, "failed: neutron is not ready, timeout\n");
+ 
++		/* Reset neutron state so firmware is ready in main loop to
++		 * process incoming requests.
++		 */
++		if (ndev->mbox)
++			ndev->mbox->ops->send_reset(ndev->mbox);
++
+ 		if (ndev->power_mode >= POWER_MODE_LOW)
+ 			neutron_clk_disable(ndev);
+ 
+diff --git a/drivers/staging/neutron/neutron_device.h b/drivers/staging/neutron/neutron_device.h
+index fc40b2d..afe4a48 100644
+--- a/drivers/staging/neutron/neutron_device.h
++++ b/drivers/staging/neutron/neutron_device.h
+@@ -65,9 +65,10 @@
+ #define DM_ACK    0xDA3
+ #define DONE      0xAD0
+ #define DM_DONE   0xDAD
+-#define RESET_VAL 0x0
++#define RESET_VAL 0xA1
+ 
+ // values received from SoC (first driver mbox)
++#define POLL            0x9011
+ #define RUN             0x269
+ #define CLEAR_FW_LOG    0x270
+ #define GET_FW_LOGLEVEL 0x271
+diff --git a/drivers/staging/neutron/neutron_inference.c b/drivers/staging/neutron/neutron_inference.c
+index bd49a57..d9fab00 100644
+--- a/drivers/staging/neutron/neutron_inference.c
++++ b/drivers/staging/neutron/neutron_inference.c
+@@ -288,6 +288,12 @@ static void inference_done_callback(struct work_struct *work)
+ 
+ 	pm_runtime_get_sync(ndev->dev);
+ 
++	/* Snapshot the firmware reply into inf before send_reset clobbers
++	 * MBOX0..MBOX2 with RESET_VAL. Userspace reads these via
++	 * NEUTRON_IOCTL_INFERENCE_STATE long after the registers are gone.
++	 */
++	mbox->ops->recv_data(mbox, &inf->fw_rx);
++
+ 	/* Sync the output data for cpu after inference is done */
+ 	neutron_memory_sync(ndev, inf->buf->dma_addr + inf->args.output_offset,
+ 			    inf->args.output_size, DMA_FROM_DEVICE);
+@@ -388,7 +394,6 @@ static long neutron_inference_ioctl(struct file *file,
+ 	struct neutron_device *ndev;
+ 	int ret = -EINVAL;
+ 	struct neutron_uapi_result_status uapi;
+-	struct neutron_mbox_rx_msg rx_msg;
+ 
+ 	if (!inf || IS_ERR(inf))
+ 		return ret;
+@@ -403,11 +408,9 @@ static long neutron_inference_ioctl(struct file *file,
+ 		uapi.status = inf->status;
+ 		uapi.error_code = 0;
+ 
+-		/* Read firmware return code if the job is done */
+-		if (inf->status == NEUTRON_UAPI_STATUS_DONE) {
+-			ndev->mbox->ops->recv_data(ndev->mbox, &rx_msg);
+-			uapi.error_code = rx_msg.args[0];
+-		}
++		/* Serve the cached firmware reply */
++		if (inf->status == NEUTRON_UAPI_STATUS_DONE)
++			uapi.error_code = inf->fw_rx.args[0];
+ 
+ 		if (copy_to_user(udata, &uapi, sizeof(uapi)))
+ 			break;
+diff --git a/drivers/staging/neutron/neutron_inference.h b/drivers/staging/neutron/neutron_inference.h
+index db0419a..e6ddb40 100644
+--- a/drivers/staging/neutron/neutron_inference.h
++++ b/drivers/staging/neutron/neutron_inference.h
+@@ -11,6 +11,7 @@
+  ****************************************************************************/
+ 
+ #include "uapi/neutron.h"
++#include "neutron_mailbox.h"
+ 
+ #include <linux/kref.h>
+ #include <linux/types.h>
+@@ -46,6 +47,9 @@ enum neutron_cmd_type {
+  * @inf_arg:			Inference arguments
+  * @poll_mode:			Whether use polling mode to read inference result
+  * @poll_timer:			Poll timer to check inference status
++ * @fw_rx:			Firmware reply snapshot taken in
++ *				inference_done_callback before send_reset
++ *				clobbers the MBOX registers.
+  */
+ struct neutron_inference {
+ 	struct neutron_device    *ndev;
+@@ -60,6 +64,7 @@ struct neutron_inference {
+ 	unsigned int             poll_count;
+ 	enum   neutron_cmd_type  cmd_type;
+ 	struct neutron_uapi_inference_args  args;
++	struct neutron_mbox_rx_msg          fw_rx;
+ };
+ 
+ /**
+diff --git a/drivers/staging/neutron/neutron_mailbox.c b/drivers/staging/neutron/neutron_mailbox.c
+index da167f2..e0844c6 100644
+--- a/drivers/staging/neutron/neutron_mailbox.c
++++ b/drivers/staging/neutron/neutron_mailbox.c
+@@ -90,6 +90,11 @@ static int mbox_send_data(struct neutron_mbox *mbox, void *data)
+ 		msg->argc = MAX_SEND_MSG_ARGC;
+ 	}
+ 
++	/* Write POLL first to wake firmware and signal "request incoming".
++	 * Prevents race where firmware wakes on argument writes and reads stale request.
++	 */
++	writel(POLL, mbox->base + MBOX3);
++
+ 	for (i = 0; i < msg->argc; i++)
+ 		writel(msg->args[i], mbox->base + SEND_MSG_ARG(i));
+ 
+@@ -124,6 +129,8 @@ static int mbox_send_reset(struct neutron_mbox *mbox)
+ {
+ 	u32 i, val;
+ 
++	/* Write POLL first to wake firmware and signal "request incoming". */
++	writel(POLL, mbox->base + MBOX3);
+ 	writel(RESET_VAL, mbox->base + MBOX4);
+ 	writel(RESET_VAL, mbox->base + MBOX5);
+ 	writel(RESET, mbox->base + MBOX3);
+@@ -181,7 +188,7 @@ static void mbox_recv_callback(struct neutron_mbox *mbox)
+ {
+ 	struct neutron_mbox_rx_msg rx_msg;
+ 
+-	mbox_recv_data(mbox, &rx_msg);
++	rx_msg.retcode = mbox_read_ret(mbox);
+ 
+ 	if (mbox->callback)
+ 		mbox->callback(mbox->ndev, &rx_msg);

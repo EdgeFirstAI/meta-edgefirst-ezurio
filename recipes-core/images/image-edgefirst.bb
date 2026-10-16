@@ -6,6 +6,12 @@ inherit image-summitsom-gen image-summitsom-sd-gen image-summitsom-swu-gen
 
 IMAGE_FEATURES += "splash hwcodecs weston"
 
+EDGEFIRST_VENDOR_CA_DIR = "${EDGEFIRST_CERT_PATH}/ezurio"
+SWUPDATE_SIGNING = "${@'CMS' if d.getVar('EDGEFIRST_CERT_PATH') else ''}"
+SWUPDATE_CMS_KEY = "${EDGEFIRST_VENDOR_CA_DIR}/private/${EDGEFIRST_SIGNING_LEAF}.key.pem"
+SWUPDATE_CMS_CERT = "${EDGEFIRST_VENDOR_CA_DIR}/${EDGEFIRST_SIGNING_LEAF}.cert.pem"
+SWUPDATE_CMS_EXTRA_CERTS = "${EDGEFIRST_VENDOR_CA_DIR}/edgefirst-ezurio.crt.pem"
+
 IMAGE_INSTALL += "\
     packagegroup-summit-basic \
     packagegroup-summit-diag \
