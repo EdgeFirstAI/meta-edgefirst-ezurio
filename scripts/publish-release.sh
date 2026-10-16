@@ -54,12 +54,14 @@ done
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 
 # Never publish a package a device would reject: the signature has to be
-# present and has to chain to the root the images trust.
+# present and has to chain to the root the images trust. The default verify
+# purpose is deliberate; it is the S/MIME one the device applies, which a leaf
+# without the emailProtection key usage fails.
 SWU="$DEPLOY_DIR/$STEM.swu"
 ( cd "$WORK" && cpio -id --quiet sw-description sw-description.sig < "$SWU" ) \
     || { echo "$SWU has no sw-description.sig; it is not signed" >&2; exit 1; }
 openssl cms -verify -binary -inform DER -in "$WORK/sw-description.sig" \
-    -content "$WORK/sw-description" -CAfile "$ROOT_CRT" -purpose any -out /dev/null 2>"$WORK/verify.log" \
+    -content "$WORK/sw-description" -CAfile "$ROOT_CRT" -out /dev/null 2>"$WORK/verify.log" \
     || { echo "signature on $SWU does not verify against $ROOT_CRT" >&2; cat "$WORK/verify.log" >&2; exit 1; }
 echo "==> $STEM.swu signature verifies against the EdgeFirst root"
 
