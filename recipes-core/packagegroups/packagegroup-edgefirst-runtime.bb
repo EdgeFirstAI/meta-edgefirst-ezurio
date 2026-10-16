@@ -1,6 +1,6 @@
 SUMMARY = "EdgeFirst runtime for Ezurio Nitrogen SMARC"
-DESCRIPTION = "TFLite with the NPU delegate for the SoC, a minimal V4L2 and \
-libcamera camera stack, and the EdgeFirst client and profiler. No GStreamer, \
+DESCRIPTION = "The EdgeFirst capability groups for NPU, camera, Studio agents and \
+diagnostics, plus the Ezurio camera setup and 2D blitter. No GStreamer, \
 NNStreamer, Python or ONNX."
 
 LICENSE = "MIT"
@@ -11,11 +11,10 @@ PACKAGE_ARCH = "${MACHINE_ARCH}"
 inherit packagegroup
 
 RDEPENDS:${PN} = " \
-    edgefirst-client \
-    edgefirst-profiler \
-    tensorflow-lite \
-    libcamera \
-    v4l-utils \
+    packagegroup-edgefirst-npu \
+    packagegroup-edgefirst-studio \
+    packagegroup-edgefirst-camera \
+    packagegroup-edgefirst-diagnostics \
     summit-camera-setup \
     summit-set-mode \
 "
@@ -24,12 +23,6 @@ RDEPENDS:${PN} = " \
 # here; this is its remaining member that applies to the Nitrogen machines.
 RDEPENDS:${PN}:append:mx9-generic-bsp = " kernel-module-pivariety"
 
-RDEPENDS:${PN}:append:mx8mp-nxp-bsp = " \
-    tensorflow-lite-vx-delegate \
-    imx-gpu-g2d \
-"
-
-RDEPENDS:${PN}:append:mx95-nxp-bsp = " \
-    tensorflow-lite-neutron-delegate \
-    neutron \
-"
+# The 2D blitter is not part of the capability groups; the NPU delegate, Neutron
+# runtime, libcamera ISP IPA and the client and profiler come from them.
+RDEPENDS:${PN}:append:mx8mp-nxp-bsp = " imx-gpu-g2d"
