@@ -31,3 +31,8 @@ do_patch:append:mx8mp-generic-bsp:summitsom () {
 do_patch:append:mx95-generic-bsp:summitsom () {
     patch -p1 -d "${S}" < "${UNPACKDIR}/0002-edgefirst-imx95-enable-neutron-npu.patch"
 }
+
+# Headless GPU access. The Mali kernel driver registers no DRM device, and the
+# display controller is disabled until an overlay enables a panel, so there is
+# no /dev/dri for the GBM and EGL device paths to open.
+SRC_URI:append:mx95-generic-bsp:summitsom = " file://edgefirst-headless-drm.cfg"

@@ -21,7 +21,7 @@ RDEPENDS:${PN} = " \
 
 # The Ezurio DVK group adds Python and python3-dbus-fast, which are not needed
 # here; this is its remaining member that applies to the Nitrogen machines.
-RDEPENDS:${PN}:append:mx9-generic-bsp = " kernel-module-pivariety"
+RDEPENDS:${PN}:append:mx9-generic-bsp = " kernel-module-pivariety edgefirst-headless-drm"
 
 # The 2D blitter and the OpenVX EVIS kernel header are not part of the
 # capability groups; the NPU delegate, Neutron runtime, libcamera ISP IPA and
