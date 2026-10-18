@@ -43,3 +43,12 @@ install_kernel_module_imx_gpu_viv () {
     fi
 }
 ROOTFS_POSTPROCESS_COMMAND:append:mx8mp-nxp-bsp = " install_kernel_module_imx_gpu_viv;"
+
+# The OpenVX runtime builds its EVIS kernels from this header at run time. The
+# build fails if anything removes it from the root filesystem.
+check_vx_ext_header () {
+    if [ ! -f ${IMAGE_ROOTFS}${includedir}/CL/cl_viv_vx_ext.h ]; then
+        bbfatal "${includedir}/CL/cl_viv_vx_ext.h is missing from the image; OpenVX cannot build its EVIS kernels"
+    fi
+}
+ROOTFS_POSTPROCESS_COMMAND:append:mx8mp-nxp-bsp = " check_vx_ext_header;"

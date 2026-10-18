@@ -23,6 +23,7 @@ RDEPENDS:${PN} = " \
 # here; this is its remaining member that applies to the Nitrogen machines.
 RDEPENDS:${PN}:append:mx9-generic-bsp = " kernel-module-pivariety"
 
-# The 2D blitter is not part of the capability groups; the NPU delegate, Neutron
-# runtime, libcamera ISP IPA and the client and profiler come from them.
-RDEPENDS:${PN}:append:mx8mp-nxp-bsp = " imx-gpu-g2d"
+# The 2D blitter and the OpenVX EVIS kernel header are not part of the
+# capability groups; the NPU delegate, Neutron runtime, libcamera ISP IPA and
+# the client and profiler come from them.
+RDEPENDS:${PN}:append:mx8mp-nxp-bsp = " imx-gpu-g2d imx-gpu-viv-vx-ext-header"
