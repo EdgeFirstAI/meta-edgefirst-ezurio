@@ -3,8 +3,9 @@
 #
 #   publish-release.sh [--dry-run] MACHINE VERSION DEPLOY_DIR
 #
-# VERSION is YYYY.MM.PATCH and must match the EDGEFIRST_RELEASE the image was
-# built with, which names the files in DEPLOY_DIR.
+# VERSION is YYYY.MM.PATCH, or YYYY.MM.PATCH-rcN for a release candidate, and must
+# match the EDGEFIRST_VERSION the image was built with (a ~rcN there is -rcN in
+# file names). It names the files in DEPLOY_DIR.
 #
 # Layout under s3://edgefirst-repo/ezurio/ (https://repo.edgefirst.ai/ezurio/):
 #
@@ -29,7 +30,7 @@ MACHINE="${1:?$USAGE}"
 VERSION="${2:?$USAGE}"
 DEPLOY_DIR="${3:?$USAGE}"
 
-[[ "$VERSION" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{1,2}$ ]] || { echo "VERSION must be YYYY.MM.PATCH: $VERSION" >&2; exit 1; }
+[[ "$VERSION" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{1,2}(-rc[0-9]+)?$ ]] || { echo "VERSION must be YYYY.MM.PATCH or YYYY.MM.PATCH-rcN: $VERSION" >&2; exit 1; }
 
 PRODUCT="EdgeFirst Yocto for Ezurio"
 VENDOR="ezurio"
@@ -48,7 +49,7 @@ for f in "$ROOT_CRT" "$INT_CRT"; do
     [ -f "$f" ] || { echo "missing $f" >&2; exit 1; }
 done
 for ext in "${EXTENSIONS[@]}"; do
-    [ -f "$DEPLOY_DIR/$STEM.$ext" ] || { echo "missing $DEPLOY_DIR/$STEM.$ext (was it built with EDGEFIRST_RELEASE=$VERSION?)" >&2; exit 1; }
+    [ -f "$DEPLOY_DIR/$STEM.$ext" ] || { echo "missing $DEPLOY_DIR/$STEM.$ext (was it built with EDGEFIRST_VERSION=${VERSION/-/\~}?)" >&2; exit 1; }
 done
 
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
