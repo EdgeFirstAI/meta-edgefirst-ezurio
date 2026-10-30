@@ -22,8 +22,10 @@ RDEPENDS:${PN} = " \
 "
 
 # The Ezurio DVK group adds Python and python3-dbus-fast, which are not needed
-# here; this is its remaining member that applies to the Nitrogen machines.
-RDEPENDS:${PN}:append:mx9-generic-bsp = " kernel-module-pivariety edgefirst-headless-drm"
+# here; the Arducam Pivariety driver is its member that applies to the Nitrogen
+# machines. The i.MX 95 also needs the VGEM render node for headless GPU use.
+RDEPENDS:${PN}:append = " kernel-module-pivariety"
+RDEPENDS:${PN}:append:mx9-generic-bsp = " edgefirst-headless-drm"
 
 # The OpenVX EVIS kernel header is not part of the capability groups; the GPU
 # and 2D blitter, NPU delegate, Neutron runtime, video codec userspace,
