@@ -24,6 +24,11 @@ SRC_URI:append:mx95-generic-bsp:summitsom = " file://0069-neutron-fix-rproc-prob
 # change.
 SRC_URI:append:mx95-generic-bsp:summitsom = " file://0070-staging-neutron-rework-driver-firmware-mailbox-handshake.patch"
 
+# Camera links. Ezurio's CSI-2 receiver patch records the sensor as the source
+# at bind time but leaves the link disabled, which also stops it being enabled,
+# so no camera can stream. Applied after that patch.
+SRC_URI:append:mx95-generic-bsp:summitsom = " file://0071-media-nxp-dwc-mipi-csi2-enable-device-tree-links.patch"
+
 do_patch:append:mx8mp-generic-bsp:summitsom () {
     patch -p1 -d "${S}" < "${UNPACKDIR}/0001-edgefirst-imx8mp-enable-gpu-npu-nodes.patch"
 }
